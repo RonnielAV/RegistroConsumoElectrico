@@ -31,7 +31,7 @@ Es ideal para tener una idea clara de cómo tu consumo impacta en las diferentes
 ## 🚀 Cómo Usar
 
 1.  Clona el repositorio o descarga los archivos.
-2.  Abre el archivo `index.html` (o como lo hayas nombrado) directamente en tu navegador web. ¡No necesitas un servidor!
+2.  Abre el archivo `Registro de Consumo Electrico.html` (o como lo hayas nombrado) directamente en tu navegador web. ¡No necesitas un servidor!
 3.  Comienza a agregar tus lecturas de contador (Fecha de Corte y kWh al Corte).
 4.  La tabla, el resumen y el gráfico se actualizarán automáticamente.
 5.  Usa los botones de "Editar" y "Eliminar" en cada fila para gestionar tus registros.
