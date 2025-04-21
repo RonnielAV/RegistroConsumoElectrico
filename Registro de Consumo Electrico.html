@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Consumo Eléctrico</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1 {
+            color: #0056b3;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        #registro-form {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end; /* Align items to the bottom */
+        }
+        #registro-form div { /* Container for label/input pairs */
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 150px; /* Allow items to grow but have a base width */
+        }
+        #registro-form label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block; /* Ensure label is on its own line or takes full width */
+            color: #555;
+        }
+        #registro-form input[type="date"],
+        #registro-form input[type="number"],
+        #registro-form button {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        #registro-form button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.3s ease;
+            flex-grow: 0; /* Prevent buttons from growing excessively */
+            align-self: flex-end; /* Align buttons to the bottom */
+        }
+        #registro-form button:hover {
+            background-color: #0056b3;
+        }
+        #registro-form button:active {
+            background-color: #004085;
+        }
+        input[type="file"] {
+            display: none; /* Hide the actual file input */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+        td {
+            text-align: center;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tbody tr:hover {
+            background-color: #e9e9e9;
+        }
+        .detalle-costo {
+            font-size: 0.85em;
+            color: #555;
+            text-align: left;
+        }
+        .acciones button {
+            padding: 5px 10px;
+            margin: 0 2px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .acciones .editar {
+            background-color: #ffc107;
+            color: #333;
+        }
+        .acciones .editar:hover {
+             background-color: #e0a800;
+        }
+         .acciones .eliminar {
+            background-color: #dc3545;
+            color: white;
+        }
+        .acciones .eliminar:hover {
+             background-color: #c82333;
+        }
+
+        #resumen {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        #resumen div {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #0056b3;
+        }
+
+        #grafico-container { /* Contenedor para controlar el tamaño del canvas */
+            margin-top: 30px;
+            max-width: 100%;
+            max-height: 500px; /* Altura máxima del CONTENEDOR */
+            position: relative; /* Necesario para que el canvas se posicione correctamente */
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        canvas {
+             /* El canvas dentro del contenedor debe ser responsivo */
+            width: 100% !important;
+            height: 100% !important;
+            display: block; /* Evita espacio extra debajo del canvas */
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #registro-form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+             #registro-form div, #registro-form button {
+                flex: auto; /* Allow items to take full width on smaller screens */
+            }
+            th, td {
+                padding: 8px;
+            }
+            .detalle-costo {
+                font-size: 0.8em;
+            }
+             .acciones button {
+                padding: 3px 6px;
+                font-size: 0.8em;
+             }
+             h1 {
+                font-size: 1.8em;
+             }
+             #grafico-container {
+                 max-height: 300px; /* Ajustar altura en pantallas pequeñas si es necesario */
+             }
+        }
+    </style>
+</head>
+<body>
+    <h1>Registro y Análisis de Consumo Eléctrico</h1>
+
+    <div id="registro-form">
+        <div>
+            <label for="fecha-corte">Fecha de Corte:</label>
+            <input type="date" id="fecha-corte">
+        </div>
+        <div>
+            <label for="kwh-corte">kWh al Corte:</label>
+            <input type="number" id="kwh-corte" placeholder="Ej: 12345">
+        </div>
+        <button id="agregarBtn" onclick="agregarOActualizarRegistro()">Agregar Registro</button>
+        <button onclick="guardarComoArchivo()">Guardar Datos</button>
+        <button onclick="document.getElementById('archivo-carga').click()">Cargar Datos</button>
+         <button onclick="limpiarRegistros()">Limpiar Todo</button>
+        <input type="file" id="archivo-carga" accept=".json" style="display:none" onchange="cargarDesdeArchivo(event)">
+    </div>
+
+    <table id="tabla-consumo">
+        <thead>
+            <tr>
+                <th>Fecha de Corte</th>
+                <th>kWh al Corte</th>
+                <th>kWh Consumidos</th>
+                <th>Costo del Período (RD$)</th>
+                <th>Detalle del Costo</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div id="resumen">
+        <div id="total-consumido"></div>
+        <div id="promedio-mensual"></div>
+    </div>
+
+    <div id="grafico-container">
+       <canvas id="grafico-consumo"></canvas>
+    </div>
+
+
+    <script>
+        let registros = [];
+        const tablaConsumo = document.querySelector('#tabla-consumo tbody');
+        const totalDiv = document.getElementById('total-consumido');
+        const promedioDiv = document.getElementById('promedio-mensual');
+        const agregarBtn = document.getElementById('agregarBtn');
+        const fechaInput = document.getElementById('fecha-corte');
+        const kwhInput = document.getElementById('kwh-corte');
+        const ctx = document.getElementById('grafico-consumo').getContext('2d');
+        let grafico;
+        let editingIndex = -1; // -1 means not editing, otherwise it's the index of the record being edited
+
+        // Carga automática de respaldo local al cargar la página
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarDesdeLocalStorage();
+        });
+
+        // Guardado automático en localStorage antes de cerrar o recargar
+        window.addEventListener('beforeunload', () => {
+             guardarEnLocalStorage();
+        });
+
+        // Función principal para agregar o actualizar un registro
+        function agregarOActualizarRegistro() {
+            const fecha = fechaInput.value;
+            const kwh = parseFloat(kwhInput.value);
+
+            // *** Validación ***
+            if (!fecha || isNaN(kwh) || kwh < 0) { // Allow 0 kWh reading but warn
+                alert('Por favor, completa todos los campos con valores válidos (kWh no negativo).');
+                return;
+            }
+
+            // Clonar y ordenar registros temporalmente para validaciones contra vecinos
+            const registrosOrdenadosTemp = [...registros].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+            if (editingIndex === -1) { // Validación al agregar un nuevo registro
+                 // Si hay registros existentes, validar que el nuevo kWh no sea menor que el último si la fecha es posterior
+                if (registrosOrdenadosTemp.length > 0) {
+                    const ultimoRegistro = registrosOrdenadosTemp[registrosOrdenadosTemp.length - 1];
+                    if (new Date(fecha) > new Date(ultimoRegistro.fecha) && kwh < ultimoRegistro.kwh) {
+                         if (!confirm(`Advertencia: La nueva lectura de kWh (${kwh}) en la fecha ${fecha} es menor que la última lectura registrada (${ultimoRegistro.kwh} en ${ultimoRegistro.fecha}). Esto es inusual y puede indicar un error o un ajuste. ¿Deseas agregarlo de todas formas? (Puede resultar en consumo negativo para el último período)`)) {
+                             return;
+                         }
+                    }
+                 }
+
+                 // Si la fecha ya existe, preguntar si desea actualizar
+                 const existingIndex = registros.findIndex(reg => reg.fecha === fecha);
+                 if (existingIndex !== -1) {
+                     if (confirm(`Ya existe un registro para la fecha ${fecha}. ¿Deseas actualizarlo con la nueva lectura de ${kwh} kWh?`)) {
+                         editingIndex = existingIndex; // Change mode to edit
+                     } else {
+                         return; // Do not add or update
+                     }
+                 }
+
+
+            } else { // Validación al editar un registro existente
+                 // Crear un array temporal excluyendo el elemento que se está editando
+                 const tempRegistrosForValidation = registros.filter((_, index) => index !== editingIndex);
+                 // Añadir el valor potencial del registro editado (con la nueva fecha y kWh)
+                 tempRegistrosForValidation.push({ fecha, kwh });
+                 // Ordenar para validar
+                 tempRegistrosForValidation.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+                 let validEdit = true;
+                 // Encontrar la posición del registro editado/nuevo en el array temporal ordenado
+                 const editedIndexInSorted = tempRegistrosForValidation.findIndex(reg => reg.fecha === fecha && reg.kwh === kwh);
+
+                 // Validar contra el registro anterior en el array ordenado (si existe)
+                 if (editedIndexInSorted > 0 && tempRegistrosForValidation[editedIndexInSorted].kwh < tempRegistrosForValidation[editedIndexInSorted - 1].kwh) {
+                      alert(`Error: La lectura de kWh (${kwh}) en la fecha ${fecha} no puede ser menor que la lectura del registro anterior ordenado (${tempRegistrosForValidation[editedIndexInSorted - 1].kwh} en ${tempRegistrosForValidation[editedIndexInSorted - 1].fecha}).`);
+                      validEdit = false;
+                 }
+                 // Validar contra el registro siguiente en el array ordenado (si existe)
+                 if (validEdit && editedIndexInSorted < tempRegistrosForValidation.length - 1 && tempRegistrosForValidation[editedIndexInSorted].kwh > tempRegistrosForValidation[editedIndexInSorted + 1].kwh) {
+                      alert(`Error: La lectura de kWh (${kwh}) en la fecha ${fecha} no puede ser mayor que la lectura del registro siguiente ordenado (${tempRegistrosForValidation[editedIndexInSorted + 1].kwh} en ${tempRegistrosForValidation[editedIndexInSorted + 1].fecha}).`);
+                       validEdit = false;
+                 }
+
+                 if (!validEdit) {
+                      return; // Prevenir la actualización si la validación falla
+                 }
+            }
+
+
+            if (editingIndex === -1) {
+                // Add new record
+                registros.push({ fecha, kwh });
+                alert('✅ Registro agregado con éxito.');
+            } else {
+                // Update existing record
+                registros[editingIndex].fecha = fecha; // Allow changing date too
+                registros[editingIndex].kwh = kwh;
+                alert('✅ Registro actualizado con éxito.');
+                resetForm(); // Reset form state after updating
+            }
+
+            registros.sort((a, b) => new Date(a.fecha) - new Date(b.fecha)); // Keep sorted by date
+            actualizarTabla();
+            guardarEnLocalStorage(); // Save after any modification
+            limpiarCamposFormulario();
+        }
+
+        // Helper to calculate consumption between two readings
+        function calcularConsumo(actual, anterior) {
+            // Return 0 if 'anterior' is undefined (first record)
+            // Return actual - anterior even if negative, to show potential error
+            return anterior !== undefined ? actual - anterior : 0;
+        }
+
+         // Helper to calculate cost and breakdown based on kWh and DR tiered tariff (Tarifa No. 1)
+        function calcularDetalleCosto(kwh) {
+             // Only calculate cost for non-negative consumption
+            if (kwh <= 0) {
+                 return { costo: 0, detalle: 'Consumo no positivo (Sin Costo Estimado)' };
+            }
+
+            let detalle = [], costo = 0, restante = kwh;
+
+            // Tramos de tarifa residencial (ejemplo basado en tarifas comunes de distribuidoras dominicanas)
+            // Estos valores pueden variar ligeramente o cambiar con el tiempo.
+            // Nota: Estas tarifas son solo por el kWh consumido. Las facturas reales tienen otros cargos fijos,
+            // ajustes por combustible/energía, subsidio (si aplica), ITBIS, etc., que no están incluidos aquí.
+            // El costo calculado es una estimación basada únicamente en la tarifa por kWh.
+            const tramos = [
+                { limite: 200, tarifa: 6.05 }, // Hasta 200 kWh
+                { limite: 100, tarifa: 8.59 }, // Siguiente 100 kWh (de 201 a 300)
+                { limite: 400, tarifa: 12.89 }, // Siguiente 400 kWh (de 301 a 700)
+                { limite: Infinity, tarifa: 13.09 } // Excedente de 700 kWh
+            ];
+
+            for (let tramo of tramos) {
+                if (restante <= 0) break; // Stop if no kWh left to calculate
+                const usadoEnEsteTramo = Math.min(restante, tramo.limite);
+                const subtotal = usadoEnEsteTramo * tramo.tarifa;
+                detalle.push(`${usadoEnEsteTramo.toFixed(2)} kWh @ RD$ ${tramo.tarifa.toFixed(2)} = RD$ ${subtotal.toFixed(2)}`);
+                costo += subtotal;
+                restante -= usadoEnEsteTramo;
+            }
+
+            return { costo, detalle: detalle.join('<br>') };
+        }
+
+
+        // Actualiza la tabla, totales y gráfico
+        function actualizarTabla() {
+            tablaConsumo.innerHTML = ''; // Clear current table rows
+            let kwhAnterior = undefined;
+            let totalKwhAcumulado = 0; // Renamed for clarity
+            let totalCostoEstimado = 0; // Renamed for clarity
+            const consumosCalculados = []; // Array to store calculated consumption per period
+            const fechasRegistros = []; // Array to store dates for labels
+
+            // Sort records by date before processing
+            registros.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+            registros.forEach((reg, index) => {
+                const fila = tablaConsumo.insertRow();
+                const consumoDelPeriodo = calcularConsumo(reg.kwh, kwhAnterior);
+                const detalleCosto = calcularDetalleCosto(consumoDelPeriodo); // Calculate cost even for negative, will return 0
+
+                // Solo sumar al total acumulado si el consumo del período no es negativo
+                if (consumoDelPeriodo >= 0) {
+                    totalKwhAcumulado += consumoDelPeriodo;
+                    totalCostoEstimado += detalleCosto.costo;
+                }
+
+                fechasRegistros.push(reg.fecha);
+                // Almacenar el consumo calculado para el gráfico (puede ser negativo)
+                consumosCalculados.push(consumoDelPeriodo);
+
+
+                fila.innerHTML = `
+                    <td>${reg.fecha}</td>
+                    <td>${reg.kwh.toFixed(2)}</td>
+                    <td>${consumoDelPeriodo.toFixed(2)}</td>
+                    <td>${detalleCosto.costo.toFixed(2)}</td>
+                    <td><p class="detalle-costo">${detalleCosto.detalle}</p></td>
+                    <td class="acciones">
+                        <button class="editar" onclick="editarRegistro(${index})">Editar</button>
+                        <button class="eliminar" onclick="eliminarRegistro(${index})">Eliminar</button>
+                    </td>
+                `;
+
+                kwhAnterior = reg.kwh; // Set for the next iteration
+            });
+
+            // Update totals and average
+             // Muestra el total calculado (sin incluir consumos negativos si los hubo)
+            totalDiv.textContent = `Consumo Total Acumulado (períodos >= 0 kWh): ${totalKwhAcumulado.toFixed(2)} kWh - Costo Total Estimado: RD$ ${totalCostoEstimado.toFixed(2)}`;
+
+            // Calculate average per *valid* period (where consumption was >= 0)
+             const periodosValidos = consumosCalculados.filter(c => c >= 0).length;
+             // Si solo hay un registro, consumosCalculados tiene 0 elementos > 0, el promedio no aplica.
+             // Si hay 2+ registros pero todos los períodos son negativos, periodosValidos es 0, el promedio no aplica.
+            promedioDiv.textContent = periodosValidos > 0 ?
+                `Promedio por Período (≥ 0 kWh): ${(totalKwhAcumulado / periodosValidos).toFixed(2)} kWh` :
+                (registros.length > 1 ? 'Promedio por Período: N/A (Consumo no positivo en los períodos)' : 'Promedio por Período: N/A (Necesitas al menos dos registros)');
+
+
+            // Update the chart ONLY if there are enough data points (at least 2 consumption periods)
+            // Need at least 2 registros to get 1 consumption period calculation.
+            // Need at least 3 registros to get 2 consumption period calculations for a meaningful bar chart.
+            // Let's draw if there's at least one calculated consumption value (which happens with 2+ records)
+            if (consumosCalculados.length >= 1) {
+                actualizarGrafico(fechasRegistros.slice(1), consumosCalculados.slice(1)); // Pass dates/consumos starting from the 2nd record (first period)
+            } else {
+                // Destroy chart if not enough data to avoid errors
+                if (grafico) grafico.destroy();
+                // Optionally, display a message in the canvas area
+                // ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // Clear canvas
+                // ctx.fillText("Añade al menos dos registros para ver el gráfico.", ctx.canvas.width / 2, ctx.canvas.height / 2);
+            }
+        }
+
+        // Updates the Chart.js graph
+        function actualizarGrafico(fechas, consumos) {
+             // fechas y consumos aquí ya solo contienen los datos de los períodos (del 2do registro en adelante)
+            if (grafico) grafico.destroy(); // Destroy previous chart instance
+
+            grafico = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: fechas,
+                    datasets: [{
+                        label: 'Consumo kWh por Período',
+                        data: consumos,
+                        backgroundColor: consumos.map(c => c >= 0 ? 'rgba(0, 123, 255, 0.7)' : 'rgba(255, 99, 132, 0.7)'), // Blue for positive/zero, Red for negative
+                        borderColor: consumos.map(c => c >= 0 ? 'rgba(0, 123, 255, 1)' : 'rgba(255, 99, 132, 1)'),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // Allow height control via CSS parent container
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'kWh Consumidos'
+                            }
+                        },
+                        x: {
+                             title: {
+                                display: true,
+                                text: 'Fecha de Corte'
+                            },
+                            ticks: {
+                                autoSkip: true,
+                                maxTicksLimit: 15 // Ajusta este número según cuántas etiquetas quieres mostrar sin solapar
+                            }
+                        }
+                    },
+                    plugins: {
+                         legend: {
+                             display: true
+                         },
+                         tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    const value = context.parsed.y;
+                                    label += value.toFixed(2) + ' kWh';
+                                    // Add estimated cost to tooltip only for non-negative consumption
+                                    if (value >= 0) {
+                                        const costoEstimado = calcularDetalleCosto(value).costo;
+                                        label += ` (Est. RD$ ${costoEstimado.toFixed(2)})`;
+                                    } else {
+                                         label += ` (Consumo Negativo - Sin Costo Estimado)`;
+                                    }
+                                    return label;
+                                }
+                            }
+                         }
+                    }
+                }
+            });
+        }
+
+        // Clears input fields
+        function limpiarCamposFormulario() {
+             fechaInput.value = '';
+             kwhInput.value = '';
+             // No resetForm() here, that happens when editing finishes or is cancelled
+        }
+
+        // Resets the form state (especially after editing)
+        function resetForm() {
+            editingIndex = -1;
+            agregarBtn.textContent = 'Agregar Registro';
+            // No need to re-set onclick, it points to agregarOActualizarRegistro which handles the logic
+        }
+
+        // Loads a record into the form for editing
+        function editarRegistro(index) {
+             if (index >= 0 && index < registros.length) {
+                 editingIndex = index;
+                 const reg = registros[index];
+                 fechaInput.value = reg.fecha;
+                 kwhInput.value = reg.kwh;
+                 agregarBtn.textContent = 'Actualizar Registro';
+                 // Scroll to form for better UX
+                 agregarBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+             }
+        }
+
+        // Deletes a record
+        function eliminarRegistro(index) {
+            if (index >= 0 && index < registros.length) {
+                 if (confirm(`¿Estás seguro de que deseas eliminar el registro de la fecha ${registros[index].fecha}?`)) {
+                    registros.splice(index, 1); // Remove 1 element at index
+                    actualizarTabla();
+                    guardarEnLocalStorage(); // Save after deleting
+                    resetForm(); // Ensure form state is reset if editing the deleted item
+                    limpiarCamposFormulario(); // Clear inputs after deleting
+                 }
+            }
+        }
+
+        // Clears all records and local storage
+        function limpiarRegistros() {
+            if (confirm('¿Estás seguro de que deseas eliminar TODOS los registros? Esta acción no se puede deshacer.')) {
+                registros = [];
+                actualizarTabla();
+                guardarEnLocalStorage(); // Clear local storage
+                resetForm();
+                limpiarCamposFormulario();
+                alert('✅ Todos los registros han sido eliminados.');
+            }
+        }
+
+        // Saves current records to Local Storage
+        function guardarEnLocalStorage() {
+            try {
+                 localStorage.setItem('registrosConsumo', JSON.stringify(registros));
+                 // console.log('Datos guardados en Local Storage.'); // For debugging
+            } catch (e) {
+                 console.error('Error al guardar en Local Storage:', e);
+                 // alert('⚠️ No se pudieron guardar los datos en el navegador. Asegúrate de que el almacenamiento local está permitido.');
+                 // Silenciar el alert por ser molesto si ocurre en beforeunload
+            }
+        }
+
+         // Loads records from Local Storage
+        function cargarDesdeLocalStorage() {
+            try {
+                const guardado = localStorage.getItem('registrosConsumo');
+                if (guardado) {
+                    const data = JSON.parse(guardado);
+                     if (Array.isArray(data)) {
+                         // Basic validation for loaded data structure
+                          const isValid = data.every(item =>
+                              typeof item === 'object' &&
+                              item !== null &&
+                              typeof item.fecha === 'string' && item.fecha.match(/^\d{4}-\d{2}-\d{2}$/) && // Simple date format check
+                              typeof item.kwh === 'number' && item.kwh >= 0 // Check kwh is non-negative number
+                          );
+
+                         if (isValid) {
+                            registros = data;
+                            actualizarTabla();
+                             // console.log('Datos cargados desde Local Storage.'); // For debugging
+                         } else {
+                              console.error('Datos en Local Storage no válidos. Ignorando datos guardados.');
+                              localStorage.removeItem('registrosConsumo'); // Clear invalid data
+                         }
+                    } else {
+                         console.error('Datos en Local Storage no válidos. Ignorando datos guardados.');
+                         localStorage.removeItem('registrosConsumo'); // Clear invalid data
+                    }
+                } else {
+                    // console.log('No hay datos guardados en Local Storage.'); // For debugging
+                    // Si no hay datos, asegurar que la tabla y el gráfico estén vacíos/limpios
+                    registros = [];
+                    actualizarTabla();
+                }
+            } catch (error) {
+                console.error('Error al cargar desde Local Storage:', error);
+                // Silenciar el alert por ser molesto si ocurre al cargar
+                 // alert('⚠️ Error al cargar los datos guardados en el navegador.');
+            }
+        }
+
+        // Saves current records as a JSON file
+        function guardarComoArchivo() {
+            if (registros.length === 0) {
+                alert('No hay datos para guardar.');
+                return;
+            }
+            try {
+                const blob = new Blob([JSON.stringify(registros, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "registros_consumo.json";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                alert('✅ Datos guardados como "registros_consumo.json".');
+             } catch (e) {
+                 console.error("Error al guardar archivo:", e);
+                 alert("❌ Ocurrió un error al intentar guardar el archivo.");
+             }
+        }
+
+        // Loads records from a JSON file
+        function cargarDesdeArchivo(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (registros.length > 0) {
+                 if (!confirm('¿Deseas cargar datos desde el archivo? Esto reemplazará los datos actuales en la tabla y el almacenamiento local.')) {
+                     event.target.value = ''; // Clear the file input
+                     return;
+                 }
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (Array.isArray(data)) {
+                        // Basic check if data looks like our records
+                         const isValid = data.every(item =>
+                             typeof item === 'object' &&
+                             item !== null &&
+                             typeof item.fecha === 'string' && item.fecha.match(/^\d{4}-\d{2}-\d{2}$/) && // Simple date format check
+                             typeof item.kwh === 'number' && item.kwh >= 0 // Check kwh is non-negative number
+                         );
+
+                         if (isValid) {
+                             registros = data;
+                             actualizarTabla();
+                             guardarEnLocalStorage(); // Save loaded data to local storage
+                             alert("✅ Registros cargados desde archivo.");
+                             resetForm(); // Reset form after loading
+                         } else {
+                              alert("⚠️ El contenido del archivo no parece ser un formato de registros de consumo válido o contiene kWh negativos.");
+                         }
+
+                    } else {
+                        alert("⚠️ El archivo no contiene un arreglo de registros válido.");
+                    }
+                } catch (error) {
+                    console.error("Error al leer o parsear el archivo:", error);
+                    alert("❌ Error al leer el archivo. Asegúrate de que es un archivo JSON válido.");
+                } finally {
+                     event.target.value = ''; // Clear the file input regardless of success/failure
+                }
+            };
+            reader.readAsText(file);
+        }
+
+
+    </script>
+</body>
+</html>
